@@ -6,6 +6,8 @@
 #include <lx/common/non_copyable.hpp>
 #include <lx/containers/Vector.hpp>
 #include <lx/gpu/Format.hpp>
+#include <lx/gpu/RenderPass.hpp>
+#include <lx/gpu/Shader.hpp>
 #include <lx/gpu/Viewport.hpp>
 
 // externals
@@ -42,18 +44,18 @@ public:
 
     struct Primitive
     {
-        enum class PolygonMode : std::uint32_t
+        enum class Fill : std::uint32_t
         {
-            fill = VK_POLYGON_MODE_FILL,
+            full = VK_POLYGON_MODE_FILL,
             line = VK_POLYGON_MODE_LINE,
             point = VK_POLYGON_MODE_POINT,
         };
-        enum class CullMode : std::uint32_t
+        enum class Cull : std::uint32_t
         {
             front = VK_CULL_MODE_FRONT_BIT,
             back = VK_CULL_MODE_BACK_BIT
         };
-        enum class FrontFace : std::uint32_t
+        enum class Front : std::uint32_t
         {
             counter_clockwise = VK_FRONT_FACE_COUNTER_CLOCKWISE,
             clockwise = VK_FRONT_FACE_CLOCKWISE
@@ -68,9 +70,9 @@ public:
             triangle_fan = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN,
         };
 
-        PolygonMode polygon_mode;
-        CullMode cull_mode;
-        FrontFace front_face;
+        Fill fill;
+        Cull cull;
+        Front front_face;
         Topology topology;
     };
     struct Depth
@@ -89,11 +91,8 @@ public:
 
         bool test = false;
         bool write = false;
-        bool bias = false;
-        bool clamp = false;
 
         float bias_constant_factor;
-        float bias_clamp;
         float bias_slope_factor;
 
         Compare compare;
@@ -152,12 +151,9 @@ public:
         };
 
         SampleCount rasterization_samples;
-        bool sample_shading = false;
         bool alpha_to_coverage = false;
-        bool alpha_to_one = false;
 
-        float min_sample_shading;
-        const VkSampleMask* pSampleMask;
+        std::uint32_t sample_mask[2];
     };
     struct Blend
     {
@@ -267,9 +263,9 @@ public:
         std::span<Attachment> attachments;
         std::array<float, 4u> constants;
     };
-    struct VertexInput
+    struct ShaderInput
     {
-        struct Binding
+        struct Vertex
         {
             enum class Rate : std::uint32_t
             {
@@ -277,42 +273,75 @@ public:
                 instance = VK_VERTEX_INPUT_RATE_INSTANCE
             };
 
-            std::uint32_t binding;
-            std::uint32_t stride;
+            struct Attribute
+            {
+                using Kind = lx::gpu::Format;
+                using enum Kind;
+
+                Kind kind;
+                std::size_t location;
+                std::size_t padding_in_bytes;
+            };
 
             Rate rate;
+            std::span<Attribute> attributes;
         };
-        struct Attribute
+        struct GlobalData
         {
-            std::uint32_t location;
-            std::uint32_t binding;
-            std::uint32_t offset;
+            struct Binding
+            {
+                enum class Shader : std::uint32_t
+                {
+                    vertex = VK_SHADER_STAGE_VERTEX_BIT,
+                    fragment = VK_SHADER_STAGE_FRAGMENT_BIT
+                };
 
-            using Format = lx::gpu::Format;
+                enum class Kind : std::uint32_t
+                {
+                    sampler = VK_DESCRIPTOR_TYPE_SAMPLER,
+                    combined_image_sampler = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    sampled_image = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                    storage_image = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                    uniform_texel_buffer = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,
+                    storage_texel_buffer = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,
+                    uniform_buffer = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                    storage_buffer = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                    uniform_buffer_dynamic = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+                    storage_buffer_dynamic = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
+                    input_attachment = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT
+                };
 
-            Format format;
+                Kind kind;
+                using enum Kind;
+
+                Shader shader;
+                std::size_t count;
+                std::size_t size_in_bytes;
+            };
+
+            std::span<Binding> bindings;
+        };
+        struct PushConstant
+        {
+            enum class Shader : std::uint32_t
+            {
+                vertex = VK_SHADER_STAGE_VERTEX_BIT,
+                fragment = VK_SHADER_STAGE_FRAGMENT_BIT
+            };
+
+            Shader shader;
+            std::size_t size_in_bytes;
+            std::size_t padding_in_bytes;
         };
 
-        std::span<Binding> bindings;
-        std::span<Attribute> attributes;
+        std::span<Vertex> vertex_layouts;
+        std::span<GlobalData> global_data_layouts;
+        std::span<PushConstant> push_constants;
     };
     struct Clip
     {
         Viewport viewport;
-        lx::common::Rect<std::int32_t, std::int32_t> scissors;
-    };
-    struct Shader
-    {
-        enum class Kind : std::uint64_t
-        {
-            vertex = VK_SHADER_STAGE_VERTEX_BIT,
-            fragment = VK_SHADER_STAGE_FRAGMENT_BIT
-        };
-
-        using enum Kind;
-
-        Kind kind;
-        lx::containers::Vector<std::byte> code;
+        lx::common::Rect<std::int32_t, std::uint32_t> scissors;
     };
 
     struct Properties
@@ -322,12 +351,13 @@ public:
         Stencil stencil;
         Multisampling multisampling;
         Blend blend;
-        VertexInput vertex_input;
+        ShaderInput shader_input;
+        std::size_t subpass_index;
 
         std::span<Shader> shaders;
         std::span<Clip> clips;
 
-        lx::containers::Vector<DynamicState> dynamic_states;
+        std::span<DynamicState> dynamic_states;
     };
 
     bool is_created() const
@@ -336,7 +366,7 @@ public:
     }
 
 private:
-    Pipeline(VkDevice vk_device_a, const Properties& properties_a);
+    Pipeline(VkDevice vk_device_a, const Properties& properties_a, const RenderPass& render_pass);
     void destroy(VkDevice vk_device_a);
 
     VkPipeline vk_pipeline = VK_NULL_HANDLE;
@@ -345,17 +375,17 @@ private:
     friend class Device;
 };
 
-constexpr Pipeline<pipeline::graphics>::Primitive::CullMode operator|(Pipeline<pipeline::graphics>::Primitive::CullMode left_a,
-                                                                      Pipeline<pipeline::graphics>::Primitive::CullMode right_a)
+constexpr Pipeline<pipeline::graphics>::Primitive::Cull operator|(Pipeline<pipeline::graphics>::Primitive::Cull left_a,
+                                                                  Pipeline<pipeline::graphics>::Primitive::Cull right_a)
 {
-    return static_cast<Pipeline<pipeline::graphics>::Primitive::CullMode>(static_cast<std::uint32_t>(left_a) |
-                                                                          static_cast<std::uint32_t>(right_a));
+    return static_cast<Pipeline<pipeline::graphics>::Primitive::Cull>(static_cast<std::uint32_t>(left_a) |
+                                                                      static_cast<std::uint32_t>(right_a));
 }
 
-constexpr Pipeline<pipeline::graphics>::Primitive::CullMode operator&(Pipeline<pipeline::graphics>::Primitive::CullMode left_a,
-                                                                      Pipeline<pipeline::graphics>::Primitive::CullMode right_a)
+constexpr Pipeline<pipeline::graphics>::Primitive::Cull operator&(Pipeline<pipeline::graphics>::Primitive::Cull left_a,
+                                                                  Pipeline<pipeline::graphics>::Primitive::Cull right_a)
 {
-    return static_cast<Pipeline<pipeline::graphics>::Primitive::CullMode>(static_cast<std::uint32_t>(left_a) &
-                                                                          static_cast<std::uint32_t>(right_a));
+    return static_cast<Pipeline<pipeline::graphics>::Primitive::Cull>(static_cast<std::uint32_t>(left_a) &
+                                                                      static_cast<std::uint32_t>(right_a));
 }
 } // namespace lx::gpu

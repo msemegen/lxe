@@ -34,10 +34,10 @@ SwapChain::SwapChain(VkDevice vk_device_a, VkSurfaceKHR vk_surface_a, const Prop
         std::uint32_t swap_chain_images_count = 0;
 
         vkGetSwapchainImagesKHR(vk_device_a, this->vk_swap_chain, &swap_chain_images_count, nullptr);
-        this->vk_swap_chain_images.reserve(swap_chain_images_count);
+        this->vk_swap_chain_images.resize(swap_chain_images_count);
         vkGetSwapchainImagesKHR(vk_device_a, this->vk_swap_chain, &swap_chain_images_count, this->vk_swap_chain_images.get_buffer());
 
-        this->vk_swap_chain_image_views.reserve(swap_chain_images_count);
+        this->vk_swap_chain_image_views.resize(swap_chain_images_count);
         for (std::uint32_t i = 0; i < swap_chain_images_count && true == success; i++)
         {
             VkImageViewCreateInfo vk_image_view_create_info {

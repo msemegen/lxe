@@ -110,7 +110,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(VkDebugUtilsMessageSeverityFlag
 
 constexpr std::string_view engine_name = "lx";
 constexpr Version engine_version = Version::Components { .major = 0u, .minor = 0u, .patch = 1u };
-constexpr Version vulkan_version = Version::Components { .major = 1u, .minor = 0u, .patch = 0u };
+constexpr Version vulkan_version = Version::Components { .major = 1u, .minor = 1u, .patch = 0u };
 
 FILE* p_log_file = nullptr;
 bool log_console_output = false;
@@ -240,6 +240,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR cmd_line, _In_
         if (true == config.vulkan.enable_validation)
         {
             default_instance_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+            default_instance_extensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
             default_instance_layers.push_back("VK_LAYER_KHRONOS_validation");
         }
 
@@ -255,10 +256,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR cmd_line, _In_
             .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
             .pNext = nullptr,
             .flags = 0x0u,
-            .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-                               VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT,
-            .messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-                           VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT,
+            .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+            .messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT,
+
             .pfnUserCallback = vk_debug_callback,
             .pUserData = nullptr
         };
@@ -279,6 +279,12 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR cmd_line, _In_
 
         if (true == vulkan_initialized)
         {
+            VkDebugUtilsMessengerEXT vk_debug_messenger = VK_NULL_HANDLE;
+            if (true == config.vulkan.enable_validation)
+            {
+                vkCreateDebugUtilsMessengerEXT(vk_instance, &debug_messenger_create_info, nullptr, &vk_debug_messenger);
+            }
+
             /// enum displays
             {
                 EnumDisplayMonitors(nullptr, nullptr, enum_monitors_handler, reinterpret_cast<LPARAM>(&displays));
@@ -699,7 +705,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR cmd_line, _In_
                     std::unique_ptr<VkPhysicalDevice[]> gpus_buffer = std::make_unique<VkPhysicalDevice[]>(gpus_count);
                     vkEnumeratePhysicalDevices(vk_instance, &gpus_count, gpus_buffer.get());
 
-                    gpus.resize(gpus_count);
+                    gpus.reserve(gpus_count);
 
                     for (std::uint32_t gpu_index = 0; gpu_index < gpus_count; gpu_index++)
                     {
@@ -761,6 +767,11 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR cmd_line, _In_
 
             lx::gpu::Context graphics_context;
             std::int32_t entry_point_ret = lx::app::entry_point(displays, gpus, graphics_context, windower, cmd_line);
+
+            if (true == config.vulkan.enable_validation)
+            {
+                vkDestroyDebugUtilsMessengerEXT(vk_instance, vk_debug_messenger, nullptr);
+            }
 
             lxlDestroy();
 

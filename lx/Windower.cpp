@@ -145,11 +145,13 @@ Windower::~Windower()
 template<> Canvas<canvas::framed> Windower::create<canvas::framed>(const lx::devices::Display& display_a,
                                                                    const Canvas<canvas::framed>::Properties& properties_a)
 {
-    assert(properties_a.size.w > 0u && properties_a.size.h > 0u);
+    assert(properties_a.extent.w > 0u && properties_a.extent.h > 0u);
 
     const Position<std::uint64_t, 2u> position {
-        .x = display_a.logical_rect.position.x + (static_cast<std::int64_t>(display_a.logical_rect.size.w) / 2u) - properties_a.size.w / 2u,
-        .y = display_a.logical_rect.position.y + (static_cast<std::int64_t>(display_a.logical_rect.size.h) / 2u) - properties_a.size.h / 2u
+        .x = display_a.logical_rect.position.x + (static_cast<std::int64_t>(display_a.logical_rect.size.w) / 2u) -
+             properties_a.extent.w / 2u,
+        .y =
+            display_a.logical_rect.position.y + (static_cast<std::int64_t>(display_a.logical_rect.size.h) / 2u) - properties_a.extent.h / 2u
     };
 
     HWND handle = CreateWindowEx(0u,
@@ -158,8 +160,8 @@ template<> Canvas<canvas::framed> Windower::create<canvas::framed>(const lx::dev
                                  WS_SYSMENU | WS_MINIMIZEBOX | WS_CAPTION,
                                  static_cast<std::int32_t>(position.x),
                                  static_cast<std::int32_t>(position.y),
-                                 static_cast<std::int32_t>(properties_a.size.w),
-                                 static_cast<std::int32_t>(properties_a.size.h),
+                                 static_cast<std::int32_t>(properties_a.extent.w),
+                                 static_cast<std::int32_t>(properties_a.extent.h),
                                  HWND_DESKTOP,
                                  nullptr,
                                  GetModuleHandle(nullptr),

@@ -92,7 +92,7 @@ public:
     struct Properties
     {
         std::string_view title;
-        common::Extent<std::uint64_t, 2u> size;
+        common::Extent<std::uint64_t, 2u> extent;
     };
 
     bool is_created() const
@@ -106,8 +106,8 @@ public:
         GetClientRect(this->window_handle, &r);
 
         return { .title = this->properties.title,
-                 .size { .w = static_cast<std::uint64_t>(std::max<LONG>(r.right - r.left, 0)),
-                         .h = static_cast<std::uint64_t>(std::max<LONG>(r.bottom - r.top, 0)) } };
+                 .extent { .w = static_cast<std::uint64_t>(std::max<LONG>(r.right - r.left, 0)),
+                           .h = static_cast<std::uint64_t>(std::max<LONG>(r.bottom - r.top, 0)) } };
     }
 
     operator VkSurfaceKHR() const

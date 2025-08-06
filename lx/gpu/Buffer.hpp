@@ -18,7 +18,8 @@ public:
     Buffer() {}
 
 private:
-    Buffer(VkDevice vk_device_a, CommandList<command_list::transfer>* p_command_list_a, const Properties& properties_a) {}
+    Buffer(VkDevice vk_device_a, const CommandList<command_list::transfer>& command_list_a, const Properties& properties_a) {}
+    Buffer(VkDevice vk_device_a, const CommandList<command_list::graphics>& command_list_a, const Properties& properties_a) {}
 
     friend class Device;
 };

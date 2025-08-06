@@ -19,7 +19,7 @@ CommandPool::CommandPool(VkDevice vk_device_a, std::uint32_t queue_family_index_
 
     if (VK_SUCCESS != res)
     {
-        log_err("vkCreateCommandPool failure: {}", static_cast<std::underlying_type_t<decltype(res)>>(res));
+        log_err("vkCreateCommandPool failed: {}", static_cast<std::underlying_type_t<decltype(res)>>(res));
     }
 }
 void CommandPool::destroy()

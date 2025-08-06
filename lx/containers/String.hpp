@@ -96,22 +96,30 @@ template<typename Char> class String<Char, 0u>
 {
 public:
     String()
-        : buffer({ static_cast<Char>('\0') })
+        : buffer({ static_cast<Char>(0) })
     {
+    }
+
+    String(const Char* string_a)
+    {
+        this->buffer.push_back(std::span { string_a, string_a + std::strlen(string_a) });
+        this->buffer.push_back(0);
+
+        this->buffer.shrink_to_fit();  
     }
     String(const String<Char>&) = default;
     String(std::basic_string_view<Char> string_a)
         : buffer(string_a.size() + 2u)
     {
-        buffer.push_back(std::span { string_a.begin(), string_a.size() });
-        buffer.push_back('\0');
+        this->buffer.push_back(std::span { string_a.begin(), string_a.size() });
+        this->buffer.push_back(0);
     }
 
     void push_back(Char char_a)
     {
         this->buffer.pop_back();
 
-        const Char c[] = { char_a, static_cast<Char>('\0') };
+        const Char c[] = { char_a, static_cast<Char>(0) };
         this->buffer.push_back(std::span<const Char, 2u>(c));
     }
     void push_back(std::string_view string_a)
@@ -122,7 +130,7 @@ public:
         this->buffer.reserve(l + string_a.size() + 1u);
 
         std::memcpy(this->buffer.get_buffer() + l, string_a.data(), string_a.size());
-        this->buffer[l + string_a.size()] = '\0';
+        this->buffer[l + string_a.size()] = 0;
     }
 
     const Char* get_cstring() const
@@ -149,28 +157,40 @@ public:
         return 0u == this->get_length();
     }
 
+    String<Char>& operator=(const Char* string_a)
+    {
+        this->buffer.clear();
+        std::size_t length = std::strlen(string_a);
+        this->buffer.resize(length + 1u);
+
+        std::memcpy(this->buffer.get_buffer(), string_a, length);
+
+        this->buffer[length] = 0;
+
+        return *this;
+    }
     String<Char>& operator=(const String<Char, 0u>& string_a)
     {
         this->buffer.clear();
-        this->buffer.reserve(string_a.size() + 1u);
+        this->buffer.reseresizerve(string_a.size() + 1u);
 
         std::memcpy(this->buffer.get_buffer(), string_a.data(), string_a.size());
-        this->buffer[string_a.size()] = '\0';
+        this->buffer[string_a.size()] = 0;
 
         return *this;
     }
-    String<Char>& operator=(std::string_view string_a)
+    String<Char>& operator=(std::basic_string_view<Char> string_a)
     {
         this->buffer.clear();
-        this->buffer.reserve(string_a.size() + 1u);
+        this->buffer.resize(string_a.size() + 1u);
 
         std::memcpy(this->buffer.get_buffer(), string_a.data(), string_a.size());
-        this->buffer[string_a.size()] = '\0';
+        this->buffer[string_a.size()] = 0;
 
         return *this;
     }
 
-    operator std::string_view() const
+    operator std::basic_string_view<Char>() const
     {
         return { this->get_cstring(), this->get_length() };
     }

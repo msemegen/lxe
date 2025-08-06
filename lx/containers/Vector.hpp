@@ -193,8 +193,6 @@ public:
         , length(other_a.length)
         , buffer(std::make_unique<Type[]>(other_a.capacity))
     {
-        assert(other_a.get_capacity() > 0u);
-
         for (std::size_t i = 0; i < this->get_length(); i++)
         {
             this->buffer[i] = other_a.buffer[i];
@@ -248,17 +246,17 @@ public:
 
     void push_back(const Type& data_a)
     {
-        this->resize(this->get_length() + 2u);
+        this->reserve(this->get_length() + 2u);
         this->buffer[this->length++] = data_a;
     }
     void push_back(Type&& data_a)
     {
-        this->resize(this->get_length() + 2u);
+        this->reserve(this->get_length() + 2u);
         this->buffer[this->length++] = std::move(data_a);
     }
     void push_back(std::span<const Type> data_a)
     {
-        this->resize(this->get_length() + data_a.size());
+        this->reserve(this->get_length() + data_a.size());
 
         for (std::size_t i = 0; i < data_a.size(); i++)
         {
@@ -268,7 +266,7 @@ public:
 
     template<typename... Arg> void emplace_back(Arg&&... args_a)
     {
-        this->resize(this->get_length() + 2u);
+        this->reserve(this->get_length() + 2u);
         new (&(this->buffer[this->length++])) Type(std::forward<Arg>(args_a)...);
     }
 
@@ -283,7 +281,7 @@ public:
         return false;
     }
 
-    void resize(std::size_t capacity_a)
+    void reserve(std::size_t capacity_a)
     {
         if (this->capacity >= capacity_a)
         {
@@ -300,9 +298,9 @@ public:
         this->buffer = std::move(new_buffer);
         this->capacity = capacity_a;
     }
-    void reserve(std::size_t length_a)
+    void resize(std::size_t length_a)
     {
-        this->resize(length_a);
+        this->reserve(length_a);
         this->length = length_a;
     }
 
@@ -379,7 +377,7 @@ public:
     {
         return this->buffer.get();
     }
-    Type* get_buffer()
+    Type* get_buffer() 
     {
         return this->buffer.get();
     }

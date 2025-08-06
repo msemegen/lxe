@@ -11,6 +11,7 @@
 #include <lx/gpu/CommandPool.hpp>
 #include <lx/gpu/Pipeline.hpp>
 #include <lx/gpu/Queue.hpp>
+#include <lx/gpu/Shader.hpp>
 #include <lx/gpu/SwapChain.hpp>
 
 // externals
@@ -41,11 +42,7 @@ public:
         return this->vk_device;
     }
 
-    template<typename Type> [[nodiscard]] Type create(typename const Type::Properties& properties) = delete;
-    template<typename Type, typename DependencyType> [[nodiscard]] Type create(const DependencyType& dependency_a) = delete;
-    template<typename Type, typename DependencyType>
-    [[nodiscard]] Type create(DependencyType* p_dependency_a, typename const Type::Properties& properties) = delete;
-
+    template<typename Type, typename... Args> [[nodiscard]] Type create(const Args&...) = delete;
     template<typename Type> void destroy(lx::common::out<Type> object_a) = delete;
 
 private:
@@ -86,11 +83,10 @@ private:
     friend class Context;
 };
 
-template<>
-inline [[nodiscard]] lx::gpu::Pipeline<lx::gpu::pipeline::graphics> Device::create<lx::gpu::Pipeline<lx::gpu::pipeline::graphics>>(
-    const lx::gpu::Pipeline<lx::gpu::pipeline::graphics>::Properties& properties_a)
+template<> inline [[nodiscard]] lx::gpu::Pipeline<lx::gpu::pipeline::graphics>
+Device::create(const lx::gpu::Pipeline<lx::gpu::pipeline::graphics>::Properties& properties_a, const RenderPass& render_pass_a)
 {
-    return { this->vk_device, properties_a };
+    return { this->vk_device, properties_a, render_pass_a };
 }
 template<> inline void Device::destroy(lx::common::out<lx::gpu::Pipeline<lx::gpu::pipeline::graphics>> object_a)
 {
@@ -98,11 +94,18 @@ template<> inline void Device::destroy(lx::common::out<lx::gpu::Pipeline<lx::gpu
 }
 
 template<> inline [[nodiscard]] lx::gpu::Buffer
-Device::create<lx::gpu::Buffer>(lx::gpu::CommandList<lx::gpu::command_list::transfer>* p_command_list_a,
+Device::create<lx::gpu::Buffer>(const lx::gpu::CommandList<lx::gpu::command_list::transfer>& command_list_a,
                                 const lx::gpu::Buffer::Properties& properties_a)
 {
-    return { this->vk_device, p_command_list_a, properties_a };
+    return { this->vk_device, command_list_a, properties_a };
 }
+template<> inline [[nodiscard]] lx::gpu::Buffer
+Device::create<lx::gpu::Buffer>(const lx::gpu::CommandList<lx::gpu::command_list::graphics>& command_list_a,
+                                const lx::gpu::Buffer::Properties& properties_a)
+{
+    return { this->vk_device, command_list_a, properties_a };
+}
+
 template<> inline void Device::destroy(lx::common::out<lx::gpu::Buffer> object_a) {}
 
 template<> inline [[nodiscard]] lx::gpu::SwapChain Device::create<lx::gpu::SwapChain>(const lx::gpu::SwapChain::Properties& properties_a)
@@ -183,5 +186,15 @@ template<> inline void
 Device::destroy(lx::common::out<lx::gpu::CommandList<lx::gpu::command_list::graphics | lx::gpu::command_list::transfer>> object_a)
 {
     object_a->destroy(this->vk_device);
+}
+
+template<> inline [[nodiscard]] lx::gpu::Shader Device::create<lx::gpu::Shader>(const lx::containers::Vector<std::byte>& data_a,
+                                                                                const Shader::Properties& properties_a)
+{
+    return { this->vk_device, data_a, properties_a };
+}
+template<> inline void Device::destroy<lx::gpu::Shader>(lx::common::out<Shader> object_a)
+{
+    object_a->destroy();
 }
 } // namespace lx::gpu
